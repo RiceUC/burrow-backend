@@ -20,7 +20,9 @@ enum Mood {
 // USERS TABLE
 model User {
   user_id              Int             @id @default(autoincrement())
-  name                 String
+  username             String          @unique
+  password_hash        String
+  name                 String?
   birthdate            DateTime?
   default_sound_duration Int?
   reminder_time        DateTime?
