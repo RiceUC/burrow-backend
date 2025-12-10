@@ -34,3 +34,16 @@ export interface AuthResponse {
     token: string
     user: UserResponse
 }
+
+export function toUserResponse(user: any): UserResponse {
+    return {
+        user_id: user.user_id,
+        username: user.username,
+        name: user.name,
+        birthdate: user.birthdate,
+        default_sound_duration: user.default_sound_duration,
+        reminder_time: user.reminder_time,
+        gender: user.gender,
+        created_at: user.created_at
+    }
+}
