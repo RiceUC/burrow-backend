@@ -1,9 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
+// GENERATOR & DATASOURCE
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -11,43 +6,65 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-model Customer {
-  id          Int      @id @default(autoincrement())
-  name        String   @db.VarChar(100)
-  phoneNumber String   @db.VarChar(20)
-  createdAt   DateTime @default(now())
-
-  orders Order[] // One customer can have many orders
-
-  @@map("customers")
+// ENUMS
+enum Mood {
+  happy
+  sad
+  tired
+  angry
 }
 
-model Restaurant {
-  id          Int     @id @default(autoincrement())
-  name        String  @db.VarChar(100)
-  description String? @db.Text
-  isOpen      Boolean @default(true)
-
-  orders Order[] // One restaurant can have many orders
-
-  @@map("restaurants")
-}
-
-model Order {
-  id                    Int      @id @default(autoincrement())
-  itemCount             Int      // Number of items ordered
-  estimatedArrivalTime  Int      // In minutes (itemCount * 10 + 10)
-  orderedAt             DateTime @default(now())
-  
-  customerId    Int
-  restaurantId  Int
+// MODELS
+// USERS TABLE
+model User {
+  user_id              Int             @id @default(autoincrement())
+  name                 String
+  birthdate            DateTime?
+  default_sound_duration Int?
+  reminder_time        DateTime?
+  gender               String?
+  created_at           DateTime        @default(now())
 
   // Relations
-  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  journal_entries      JournalEntry[]
+  sleep_sessions       SleepSession[]
+}
 
-  @@map("orders")
+
+// JOURNAL ENTRY TABLE
+model JournalEntry {
+  journal_id Int      @id @default(autoincrement())
+  user_id    Int
+  content    String
+  mood       Mood     // ENUM as required
+  created_at DateTime @default(now())
+
+  // Relation
+  user User @relation(fields: [user_id], references: [user_id])
+}
+
+
+// SLEEP SESSION TABLE
+model SleepSession {
+  session_id      Int       @id @default(autoincrement())
+  user_id         Int
+  start_time      DateTime
+  end_time        DateTime
+  duration_minutes Int?
+  sleep_quality    Int?
+  created_at      DateTime  @default(now())
+
+  // Relation
+  user User @relation(fields: [user_id], references: [user_id])
+}
+
+
+// SOUND TABLE
+model Sound {
+  sound_id  Int      @id @default(autoincrement())
+  title     String
+  duration  Int?
+  file_path String
 }
