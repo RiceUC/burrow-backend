@@ -15,7 +15,6 @@ export class UserValidation {
             .string()
             .min(1, "Name cannot be empty")
             .max(100, "Name must be at most 100 characters")
-            .optional(),
     })
 
     static readonly LOGIN: ZodType = z.object({

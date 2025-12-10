@@ -21,8 +21,8 @@ enum Mood {
 model User {
   user_id              Int             @id @default(autoincrement())
   username             String          @unique
-  password_hash        String
-  name                 String?
+  password             String
+  name                 String
   birthdate            DateTime?
   default_sound_duration Int?
   reminder_time        DateTime?
