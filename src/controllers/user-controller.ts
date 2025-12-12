@@ -27,7 +27,7 @@ export class UserController {
     static async getProfile(req: Request, res: Response, next: NextFunction) {
         try {
             const userId = (req as any).user.user_id
-            const result = await UserService.getUserById(userId)
+            const result = await UserService.getById(userId)
             res.status(200).json({
                 data: result
             })
@@ -39,7 +39,7 @@ export class UserController {
     static async updateProfile(req: Request, res: Response, next: NextFunction) {
         try {
             const userId = (req as any).user.user_id
-            const result = await UserService.updateProfile(userId, req.body)
+            const result = await UserService.update(userId, req.body)
             res.status(200).json({
                 data: result
             })
@@ -51,7 +51,7 @@ export class UserController {
     static async deleteAccount(req: Request, res: Response, next: NextFunction) {
         try {
             const userId = (req as any).user.user_id
-            await UserService.deleteUser(userId)
+            await UserService.delete(userId)
             res.status(200).json({
                 message: "Account deleted successfully"
             })
