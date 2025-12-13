@@ -76,7 +76,6 @@ export class UserService {
 
     // UPDATE USER
     static async update(user_id: number, data: Partial<RegisterUserRequest>): Promise<UserResponse> {
-        // Validate allowed fields
         const validated = Validation.validate(UserValidation.UPDATE, data)
 
         const user = await prismaClient.user.findUnique({
@@ -87,10 +86,14 @@ export class UserService {
         }
 
         const updateData: any = {}
-
+        
         if (validated.username) updateData.username = validated.username
         if (validated.name) updateData.name = validated.name
         if (validated.password) updateData.password = await bcrypt.hash(validated.password, 10)
+        if (validated.birthdate) updateData.birthdate = new Date(validated.birthdate)
+        if (validated.default_sound_duration) updateData.default_sound_duration = validated.default_sound_duration
+        if (validated.reminder_time) updateData.reminder_time = validated.reminder_time
+        if (validated.gender) updateData.gender = validated.gender
 
         const updated = await prismaClient.user.update({
             where: { user_id },

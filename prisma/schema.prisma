@@ -54,7 +54,7 @@ model SleepSession {
   session_id      Int       @id @default(autoincrement())
   user_id         Int
   start_time      DateTime
-  end_time        DateTime
+  end_time        DateTime?
   duration_minutes Int?
   sleep_quality    Int?
   created_at      DateTime  @default(now())
