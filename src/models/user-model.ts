@@ -8,7 +8,11 @@ export interface UserJWTPayload {
 export interface RegisterUserRequest {
     username: string
     password: string
-    name?: string
+    name: string
+    birthdate: Date
+    default_sound_duration: number
+    reminder_time: string
+    gender: string
 }
 
 // Login request
@@ -24,7 +28,7 @@ export interface UserResponse {
     name: string
     birthdate?: Date | null
     default_sound_duration?: number | null
-    reminder_time?: Date | null
+    reminder_time?: string | null
     gender?: string | null
     created_at: Date
 }

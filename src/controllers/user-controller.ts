@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express"
 import { UserService } from "../services/user-service"
+import { generateToken } from "../utils/jwt-util"
 
 export class UserController {
     static async register(req: Request, res: Response, next: NextFunction) {
@@ -16,8 +17,13 @@ export class UserController {
     static async login(req: Request, res: Response, next: NextFunction) {
         try {
             const result = await UserService.login(req.body)
+            const token = generateToken({
+                user_id: result.user_id,
+                username: result.username
+            })
             res.status(200).json({
-                data: result
+                token,
+                user: result
             })
         } catch (error) {
             next(error)

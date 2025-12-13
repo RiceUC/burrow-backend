@@ -14,7 +14,22 @@ export class UserValidation {
         name: z
             .string()
             .min(1, "Name cannot be empty")
-            .max(100, "Name must be at most 100 characters")
+            .max(100, "Name must be at most 100 characters"),
+        birthdate: z
+            .string()
+            .datetime()
+            .or(z.date()),
+        default_sound_duration: z
+            .number()
+            .int()
+            .positive("Sound duration must be positive"),
+        reminder_time: z
+            .string()
+            .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Reminder time must be in HH:mm format (e.g., 22:00)"),
+        gender: z
+            .string()
+            .min(1, "Gender is required")
+            .max(20, "Gender must be at most 20 characters")
     })
 
     static readonly LOGIN: ZodType = z.object({
@@ -44,9 +59,7 @@ export class UserValidation {
             .optional(),
         reminder_time: z
             .string()
-            .datetime()
-            .or(z.date())
-            .optional(),
+            .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Reminder time must be in HH:mm format (e.g., 22:00)"),
         gender: z
             .string()
             .max(20, "Gender must be at most 20 characters")

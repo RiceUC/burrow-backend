@@ -1,6 +1,6 @@
 import express from "express"
-import { UserController } from "./controllers/user-controller"
-import { authMiddleware } from "./middlewares/auth-middleware"
+import { publicRouter } from "./routes/public-api"
+import { privateRouter } from "./routes/private-api";
 import { errorMiddleware } from "./middlewares/error-middleware"
 import { PORT } from "./utils/env-util"
 
@@ -13,14 +13,9 @@ app.get("/", (req, res) => {
     res.json({ message: "Burrow API is running 🐰" })
 })
 
-// Public routes
-app.post("/api/auth/register", UserController.register)
-app.post("/api/auth/login", UserController.login)
-
-// Protected routes
-app.get("/api/users/profile", authMiddleware, UserController.getProfile)
-app.put("/api/users/profile", authMiddleware, UserController.updateProfile)
-app.delete("/api/users/account", authMiddleware, UserController.deleteAccount)
+// Public & Private routes
+app.use("/api", publicRouter)
+app.use("/api", privateRouter)
 
 // Error middleware (must be last)
 app.use(errorMiddleware)
