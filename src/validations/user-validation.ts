@@ -15,17 +15,21 @@ export class UserValidation {
             .string()
             .min(1, "Name cannot be empty")
             .max(100, "Name must be at most 100 characters"),
-        birthdate: z
-            .string()
-            .datetime()
-            .or(z.date()),
+        birthdate: z.preprocess(
+            (arg) => {
+                if (typeof arg === 'string') return new Date(arg)
+                return arg
+            },
+            z.date().optional()
+        ),
         default_sound_duration: z
             .number()
             .int()
             .positive("Sound duration must be positive"),
         reminder_time: z
             .string()
-            .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Reminder time must be in HH:mm format (e.g., 22:00)"),
+            .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Reminder time must be in HH:mm format (e.g., 22:00)")
+            .optional(),
         gender: z
             .string()
             .min(1, "Gender is required")

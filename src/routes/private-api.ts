@@ -8,9 +8,9 @@ export const privateRouter = express.Router()
 privateRouter.use(authMiddleware)
 
 // User routes
-privateRouter.get("/users/profile", authMiddleware, UserController.getProfile)
-privateRouter.put("/users/profile", authMiddleware, UserController.updateProfile)
-privateRouter.delete("/users/account", authMiddleware, UserController.deleteAccount)
+privateRouter.get("/users/profile", UserController.getProfile)
+privateRouter.put("/users/profile", UserController.updateProfile)
+privateRouter.delete("/users/account", UserController.deleteAccount)
 
 // Sleep routes
 privateRouter.post("/sleep/start", SleepController.startSession)

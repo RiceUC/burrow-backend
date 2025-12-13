@@ -18,12 +18,11 @@ export const authMiddleware = (
 
         const payload = verifyToken(token!)
 
-        if (payload) {
-            req.user = payload
-        } else {
+        if (!payload) {
             next(new ResponseError(401, "Unauthorized user!"))
         }
-
+        
+        req.user = payload!
         next()
     } catch (error) {
         next(error)
