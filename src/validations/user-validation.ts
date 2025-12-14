@@ -64,7 +64,8 @@ export class UserValidation {
             .optional(),
         reminder_time: z
             .string()
-            .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Reminder time must be in HH:mm format (e.g., 22:00)"),
+            .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Reminder time must be in HH:mm format (e.g., 22:00)")
+            .optional(),
         gender: z
             .string()
             .max(20, "Gender must be at most 20 characters")
