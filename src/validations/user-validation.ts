@@ -25,7 +25,8 @@ export class UserValidation {
         default_sound_duration: z
             .number()
             .int()
-            .positive("Sound duration must be positive"),
+            .positive("Sound duration must be positive")
+            .optional(),
         reminder_time: z
             .string()
             .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Reminder time must be in HH:mm format (e.g., 22:00)")
