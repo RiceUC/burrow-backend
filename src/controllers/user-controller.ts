@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express"
 import { UserService } from "../services/user-service"
-import { generateToken } from "../utils/jwt-util"
+import { generateAccessToken, generateRefreshToken, verifyToken } from "../utils/jwt-util"
 
 export class UserController {
     static async register(req: Request, res: Response, next: NextFunction) {
@@ -17,13 +17,41 @@ export class UserController {
     static async login(req: Request, res: Response, next: NextFunction) {
         try {
             const result = await UserService.login(req.body)
-            const token = generateToken({
+            const accessToken = generateAccessToken({
+                user_id: result.user_id,
+                username: result.username
+            })
+            const refreshToken = generateRefreshToken({
                 user_id: result.user_id,
                 username: result.username
             })
             res.status(200).json({
-                token,
+                accessToken,
+                refreshToken,
                 user: result
+            })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    static async refreshToken(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { refreshToken } = req.body
+            if (!refreshToken) {
+                return res.status(401).json({
+                    errors: "Refresh token is required"
+                })
+            }
+
+            const payload = verifyToken(refreshToken)
+            const newAccessToken = generateAccessToken({
+                user_id: payload.user_id,
+                username: payload.username
+            })
+
+            res.status(200).json({
+                accessToken: newAccessToken
             })
         } catch (error) {
             next(error)

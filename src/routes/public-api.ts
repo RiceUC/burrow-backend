@@ -5,3 +5,4 @@ export const publicRouter = express.Router()
 
 publicRouter.post("/register", UserController.register)
 publicRouter.post("/login", UserController.login)
+publicRouter.post("/refresh-token", UserController.refreshToken)
