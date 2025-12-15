@@ -1,0 +1,3 @@
+DUMMY MP3 FILE FOR TESTING
+This is a placeholder file used to test the download endpoint.
+It is not a valid MP3 audio, but will allow testing file transfer, headers, and resume behavior.
