@@ -1,16 +1,25 @@
 import express from "express"
+import cors from "cors"
+import path from "path"
 import { publicRouter } from "./routes/public-api"
-import { privateRouter } from "./routes/private-api";
+import { privateRouter } from "./routes/private-api"
 import { errorMiddleware } from "./middlewares/error-middleware"
 import { PORT } from "./utils/env-util"
 
 const app = express()
 
 app.use(express.json())
+app.use(cors())
+
+// 🔊 expose music files
+app.use(
+  "/uploads/music",
+  express.static(path.join(__dirname, "../uploads/music"))
+)
 
 // Health check
 app.get("/", (req, res) => {
-    res.json({ message: "Burrow API is running 🐰" })
+  res.json({ message: "Burrow API is running 🐰" })
 })
 
 // Public & Private routes
@@ -23,5 +32,5 @@ app.use(errorMiddleware)
 const port = PORT || 3000
 
 app.listen(port, () => {
-    console.log(`🚀 Server running on http://localhost:${port}`)
+  console.log(`🚀 Server running on http://localhost:${port}`)
 })
