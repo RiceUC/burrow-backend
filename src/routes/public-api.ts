@@ -13,3 +13,4 @@ publicRouter.post("/login", UserController.login)
 publicRouter.get("/music", MusicController.list);
 publicRouter.get("/music/:id", MusicController.get);
 publicRouter.get("/music/:id/stream", MusicController.download);
+publicRouter.post("/refresh-token", UserController.refreshToken)
