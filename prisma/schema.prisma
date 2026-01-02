@@ -68,6 +68,8 @@ model SleepSession {
 model Sound {
   sound_id  Int      @id @default(autoincrement())
   title     String
+  category  String   @default("About to sleep")
   duration  Int?
   file_path String
+  created_at DateTime @default(now())
 }

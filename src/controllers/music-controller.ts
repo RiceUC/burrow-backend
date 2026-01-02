@@ -57,18 +57,26 @@ export class MusicController {
   static async download(req: Request, res: Response) {
     try {
       const id = Number(req.params.id);
+      console.log(`[MUSIC] Stream request for ID: ${id}`);
+      
       const sound = await MusicService.getSoundById(id);
 
       if (!sound) {
+        console.log(`[MUSIC] ERROR: Sound ID ${id} not found in database`);
         return res.status(404).json({ message: "Sound not found" });
       }
 
+      console.log(`[MUSIC] Found sound: ${sound.title}, file: ${sound.file_path}`);
+      
       const audioPath = MusicService.getAudioPath(sound.file_path);
       
       // Validasi fisik file
       if (!audioPath) {
+        console.log(`[MUSIC] ERROR: Audio file path not found or does not exist: ${sound.file_path}`);
         return res.status(404).json({ message: "Audio file path not configured" });
       }
+
+      console.log(`[MUSIC] Streaming from: ${audioPath}`);
 
       // Header penting untuk streaming audio
       res.setHeader("Content-Type", "audio/mpeg");
@@ -77,12 +85,16 @@ export class MusicController {
 
       res.sendFile(audioPath, (err) => {
         if (err) {
+          console.log(`[MUSIC] ERROR: Failed to send file: ${err.message}`);
           if (!res.headersSent) {
             res.status(404).json({ message: "File not found on disk" });
           }
+        } else {
+          console.log(`[MUSIC] Successfully streamed: ${sound.title}`);
         }
       });
     } catch (error) {
+      console.log(`[MUSIC] ERROR: ${(error as Error).message}`);
       res.status(500).json({
         message: "Failed to play audio",
         error: (error as Error).message
