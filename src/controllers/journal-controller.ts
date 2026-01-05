@@ -29,8 +29,16 @@ export async function getJournalById(req: Request, res: Response, next: NextFunc
     try {
         const { id } = req.params
         const journalId = parseInt(id)
+        const currentUserId = (req as any).user.user_id
 
         const journal = await JournalService.getById(journalId)
+
+        if (journal.user_id !== currentUserId) {
+            return res.status(403).json({
+                status: 403,
+                message: "Anda tidak memiliki akses untuk melihat journal pengguna lain"
+            })
+        }
 
         res.status(200).json({
             status: 200,

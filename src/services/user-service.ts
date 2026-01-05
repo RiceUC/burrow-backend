@@ -34,7 +34,8 @@ export class UserService {
             data: {
                 username: validated.username,
                 password: hashedPassword,
-                name: validated.name ?? ""
+                name: validated.name ?? "",
+                gender: validated.gender
             }
         })
 

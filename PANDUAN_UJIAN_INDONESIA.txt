@@ -1,0 +1,1098 @@
+═══════════════════════════════════════════════════════════════════════════════════
+PANDUAN UJIAN: MVVM + StateFlow + Journal Feature + Backend Integration
+Bahasa: Indonesia
+═══════════════════════════════════════════════════════════════════════════════════
+
+📚 DAFTAR ISI:
+1. Pengenalan MVVM Architecture
+2. StateFlow & Coroutines
+3. Journal Feature Deep Dive
+4. Code Correctness & Best Practices
+5. Routing & Navigation
+6. Backend Controllers
+7. Database Integration
+8. Kode Real dari Project Kamu
+
+═══════════════════════════════════════════════════════════════════════════════════
+1. PENGENALAN MVVM ARCHITECTURE
+═══════════════════════════════════════════════════════════════════════════════════
+
+APA ITU MVVM?
+════════════
+MVVM = Model - View - ViewModel
+
+┌─────────────────────────────────────────────────────────────────┐
+│ VIEW (UI)                                                       │
+│ ├─ Composable (Jetpack Compose)                                │
+│ ├─ XML Layouts                                                 │
+│ └─ User Interface                                              │
+└────────────────┬────────────────────────────────────────────────┘
+                 │ Observe (StateFlow)
+                 │ Listen untuk changes
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ VIEWMODEL                                                       │
+│ ├─ Business Logic                                              │
+│ ├─ State Management (StateFlow)                                │
+│ ├─ Coroutines untuk async operations                           │
+│ └─ Repository access                                           │
+└────────────────┬────────────────────────────────────────────────┘
+                 │ Call methods
+                 │ Trigger operations
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ MODEL / REPOSITORY                                              │
+│ ├─ Data Layer (Database, API calls)                            │
+│ ├─ Business rules                                              │
+│ └─ Data transformation                                         │
+└─────────────────────────────────────────────────────────────────┘
+
+ALUR KERJA:
+1. User interact dengan UI (klik button, ketik text)
+2. View call ViewModel method
+3. ViewModel process logic, interact dengan Repository/Database
+4. Data di-update di StateFlow
+5. View observe StateFlow, UI update otomatis (reactive)
+
+KEUNTUNGAN MVVM:
+✓ Separation of concerns (pisah tanggungjawab)
+✓ Testable (bisa di-test dengan mudah)
+✓ Reusable (bisa pakai ViewModel di multiple views)
+✓ Reactive (UI otomatis update saat data berubah)
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+2. STATEFLOW & COROUTINES
+═══════════════════════════════════════════════════════════════════════════════════
+
+APA ITU STATEFLOW?
+══════════════════
+StateFlow = State Management dengan reactive pattern
+
+Analogi: Bayangkan WhatsApp notification
+- Saat ada pesan baru, notification langsung muncul
+- Kamu tidak perlu cek berkali-kali
+- StateFlow work sama seperti itu
+
+CONTOH BASIC:
+─────────────
+// Private (ViewModel saja bisa ubah)
+private val _journals = MutableStateFlow<List<Journal>>(emptyList())
+
+// Public (UI bisa observe/baca)
+val journals: StateFlow<List<Journal>> = _journals.asStateFlow()
+
+// Gimana cara observe di UI?
+val journals by viewModel.journals.collectAsState(initial = emptyList())
+
+// Gimana UI auto update?
+LaunchedEffect(journals) {
+    // Setiap kali journals berubah, code ini dijalankan
+    android.util.Log.d("JournalListScreen", "Journals updated: ${journals.size} items")
+}
+
+FLOW PATTERN:
+─────────────
+private val _value = MutableStateFlow(initialValue)
+val value: StateFlow<...> = _value.asStateFlow()
+
+WHY "private" dan "public"?
+- Private: Cegah UI langsung ubah state (harus lewat ViewModel method)
+- Controlled changes: Biar ViewModel bisa validate dulu sebelum update
+
+
+APA ITU COROUTINES?
+═══════════════════
+Coroutines = Lightweight threads untuk async operations (non-blocking)
+
+Tanpa Coroutines (BLOCKING - BAD ❌):
+────────────────────────────────────
+fun fetchJournals() {
+    val journals = api.getJournals()  // Block UI untuk 2 detik!
+    _journals.value = journals         // UI freeze, user can't click anything
+}
+
+Dengan Coroutines (NON-BLOCKING - GOOD ✅):
+──────────────────────────────────────────
+fun fetchJournals() {
+    viewModelScope.launch {  // Start coroutine
+        val journals = api.getJournals()  // Network call (2 detik)
+        _journals.value = journals         // Update state
+        // UI tetap responsive! User bisa interact sambil menunggu
+    }
+}
+
+VIEWMODELSCOPE.LAUNCH:
+─────────────────────
+viewModelScope = Coroutine scope yang tied ke ViewModel lifecycle
+
+Keuntungan:
+- Auto cancel coroutine saat ViewModel destroyed
+- Prevent memory leak
+- Safe untuk UI updates
+
+CONTOH REAL (dari Journal Feature):
+───────────────────────────────────
+fun addJournal(userId: Int, content: String, mood: MoodType, onComplete: () -> Unit = {}) {
+    _isSaving.value = true  // Show loading state
+    
+    viewModelScope.launch {  // Non-blocking coroutine
+        val request = JournalRequest(
+            user_id = userId,
+            content = content,
+            mood = mood.name.lowercase()  // lowercase untuk API
+        )
+
+        journalRepository.createJournal(request)
+            .onSuccess {
+                android.util.Log.d("JournalVM", "Journal created successfully")
+                fetchJournals(userId)  // Refresh list
+                _isSaving.value = false  // Hide loading
+                onComplete()  // Callback ke screen
+            }
+            .onFailure { e ->
+                android.util.Log.e("JournalVM", "Add failed: ${e.message}")
+                _isSaving.value = false
+            }
+    }
+}
+
+BREAKDOWN:
+- _isSaving.value = true → Button disabled, show loading spinner
+- viewModelScope.launch → Non-blocking coroutine
+- journalRepository.createJournal → API call (auto happens in background)
+- onSuccess → Update list, hide loading, callback
+- onFailure → Handle error
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+3. JOURNAL FEATURE DEEP DIVE
+═══════════════════════════════════════════════════════════════════════════════════
+
+ARCHITECTURE JOURNAL FEATURE:
+════════════════════════════
+
+UI LAYER (Screens):
+  ├─ JournalListScreen.kt      (Tampilkan list journals, delete)
+  ├─ JournalEntryScreen.kt     (Create/Edit journal entry)
+  └─ BottomNavBar.kt           (Navigate to journal)
+
+VIEWMODEL LAYER:
+  └─ JournalViewModel.kt       (Business logic, state management)
+
+DATA LAYER:
+  ├─ JournalRepository.kt      (API calls)
+  ├─ AuthRepository.kt         (Auth & userId)
+  └─ TokenManager.kt           (Simpan token)
+
+NAVIGATION:
+  └─ NavGraph.kt               (Route definition)
+
+
+STATEFLOW DI JOURNAL FEATURE:
+═════════════════════════════
+
+1. _journals (List of journals):
+   private val _journals = MutableStateFlow<List<Journal>>(emptyList())
+   val journals: StateFlow<List<Journal>> = _journals.asStateFlow()
+   
+   Digunakan: JournalListScreen untuk tampilkan list
+
+2. _currentJournal (Edit mode):
+   private val _currentJournal = MutableStateFlow<Journal?>(null)
+   val currentJournal: StateFlow<Journal?> = _currentJournal.asStateFlow()
+   
+   Digunakan: JournalEntryScreen saat edit journal lama
+
+3. _isSaving (Loading state):
+   private val _isSaving = MutableStateFlow(false)
+   val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+   
+   Digunakan: Disable button saat save
+
+
+METHODS DI JOURNALVIEWMODEL:
+════════════════════════════
+
+fun fetchJournals(userId: Int):
+  - Purpose: Ambil list journals dari API
+  - Update: _journals.value
+  - Called by: JournalListScreen di LaunchedEffect
+  - Pattern: Update _journals → UI observe & render otomatis
+
+fun loadJournal(journalId: Int):
+  - Purpose: Load single journal untuk edit
+  - Update: _currentJournal.value
+  - Called by: JournalEntryScreen saat edit mode
+
+fun addJournal(userId, content, mood, onComplete):
+  - Purpose: Create journal baru
+  - Flow: showLoading → API call → refresh list → hideLoading → callback
+  - Callback: Navigate back ke list screen
+  - Important: onComplete() hanya dipanggil SETELAH API berhasil!
+
+fun updateJournal(journalId, userId, content, mood, onComplete):
+  - Purpose: Update journal yang sudah ada
+  - Similar to addJournal but with PATCH request
+
+fun deleteJournal(journalId, userId):
+  - Purpose: Delete journal
+  - Pattern: OPTIMISTIC DELETE (langsung ilang dari UI)
+  - If error: Reload list otomatis
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+4. CODE CORRECTNESS & BEST PRACTICES
+═══════════════════════════════════════════════════════════════════════════════════
+
+ERROR YANG KAMU ENCOUNTER & SOLUSINYA:
+════════════════════════════════════════
+
+❌ MASALAH #1: Journal screen blank
+─────────────────────────────────────
+Problem: userIdValue = null
+Root Cause: userId tidak di-restore saat app restart
+Solution: Update AuthViewModel.checkLoginStatus() untuk restore userId dari TokenManager
+
+Pelajaran:
+- State persistence penting untuk session management
+- onCreate() dipanggil saat app start, harus restore semua state
+- Jangan asumsi userId always ada
+
+CODE:
+private fun checkLoginStatus() {
+    viewModelScope.launch {
+        authRepository.isLoggedIn().collect { isLoggedIn ->
+            _isLoggedIn.value = isLoggedIn
+            if (isLoggedIn) {
+                // PENTING: Restore userId dari saved token
+                authRepository.getCurrentUserId().collect { userId ->
+                    _userId.value = userId
+                }
+            }
+        }
+    }
+}
+
+
+❌ MASALAH #2: Journal entry blank saat buat baru
+──────────────────────────────────────────────────
+Problem: Text dari entry sebelumnya masih ada
+Root Cause: LaunchedEffect(currentJournal) terus overwrite state
+Solution: Add condition isEditMode, hanya restore saat edit mode
+
+Pelajaran:
+- LaunchedEffect(dependency) dipanggil setiap kali dependency berubah
+- Harus careful dengan logic di LaunchedEffect
+- Conditional execution important
+
+CODE:
+LaunchedEffect(journalId) {
+    if (journalId == null) {
+        // CREATE mode: Reset ke default
+        selectedMood = MoodType.HAPPY
+        content = ""
+    } else {
+        // EDIT mode: Load dari API
+        viewModel.loadJournal(journalId)
+    }
+}
+
+
+❌ MASALAH #3: Mood selection tidak berubah
+────────────────────────────────────────────
+Problem: Klik mood button, moodnya tidak update di UI
+Root Cause: API return lowercase ("tired"), tapi code compare dengan uppercase ("TIRED")
+Solution: Convert ke uppercase sebelum parse enum
+
+Pelajaran:
+- Case sensitive! "TIRED" ≠ "tired"
+- API dan enum harus consistent
+- Gunakan .uppercase() / .lowercase() untuk normalize
+
+CODE:
+selectedMood = try {
+    MoodType.valueOf(currentJournal!!.mood.uppercase())  // ← .uppercase() penting!
+} catch (e: Exception) {
+    MoodType.HAPPY
+}
+
+
+❌ MASALAH #4: Entry masuk ke API, tapi tidak muncul di list
+────────────────────────────────────────────────────────────
+Problem: Saat addJournal berhasil, navigasi kembali tapi list masih kosong
+Root Cause: navigasi terjadi SEBELUM fetchJournals() selesai
+Solution: Gunakan onComplete callback, navigasi HANYA setelah API semua selesai
+
+Pelajaran:
+- Async operations tidak instant
+- Jangan asumsi data sudah update sebelum callback
+- Gunakan callback untuk sequencing operations
+
+CODE (SEBELUM - WRONG):
+if (content.isNotEmpty()) {
+    viewModel.addJournal(userId, content, mood)
+    onSaved()  // ❌ Called immediately, before API finishes!
+}
+
+CODE (SESUDAH - CORRECT):
+if (content.isNotEmpty()) {
+    viewModel.addJournal(
+        userId, content, mood,
+        onComplete = { onSaved() }  // ✅ Called after API + refresh completes
+    )
+}
+
+
+❌ MASALAH #5: JWT expired, semua API calls fail
+─────────────────────────────────────────────────
+Problem: Access token dari kemarin sudah expired (1 hour)
+Root Cause: Token hanya valid 1 jam, tidak ada refresh mechanism
+Solution: Implement refresh token dengan TokenRefreshInterceptor
+
+Pelajaran:
+- Token expiration adalah security feature
+- Tidak boleh extend token expiration terlalu panjang
+- Implement refresh token untuk seamless UX
+- Interceptor pattern bagus untuk auto-handling
+
+
+BEST PRACTICES CHECKLIST:
+═════════════════════════
+
+✓ NAMING:
+  - StateFlow names: private _state, public state
+  - Methods: verb + noun (fetchJournals, addJournal, deleteJournal)
+  - Variables: camelCase (isSaving, currentJournal)
+
+✓ STATE MANAGEMENT:
+  - Don't expose MutableStateFlow publicly
+  - Use immutable return type StateFlow
+  - Only ViewModel modifies state
+
+✓ ERROR HANDLING:
+  - Try-catch untuk parsing (enum.valueOf)
+  - Log errors dengan timestamp
+  - Show user-friendly error messages
+
+✓ LOGGING:
+  - Debug log untuk normal flow
+  - Error log untuk exceptions
+  - Tag dengan screen/class name
+
+✓ ASYNC OPERATIONS:
+  - Use viewModelScope.launch
+  - Don't block UI thread
+  - Use callbacks untuk sequencing
+
+✓ TESTING MINDSET:
+  - Each method should have single responsibility
+  - Dependencies injected (not hardcoded)
+  - Logic testable without UI
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+5. ROUTING & NAVIGATION
+═══════════════════════════════════════════════════════════════════════════════════
+
+APA ITU ROUTING?
+════════════════
+Routing = Definisi path/URL untuk setiap screen
+Analogi: Menu di warung makan
+
+Di Backend API:
+  /api/journals       → Get all journals
+  /api/journals/:id   → Get single journal
+  /api/journals       → Create journal (POST)
+
+Di Frontend Navigation:
+  "journal_list"      → Show list
+  "journal_entry"     → Create new
+  "journal_entry/:id" → Edit existing
+
+
+NAVGRAPH.KT - ROUTING DEFINITION:
+═════════════════════════════════
+
+val startDestination = if (isLoggedIn) "sleep_tracker" else "welcome"
+// Tentukan screen pertama kali app dibuka
+
+NavHost(navController, startDestination) {
+    // Define semua routes
+    
+    composable("welcome") {
+        WelcomeView(onNavigate = { navController.navigate("login") })
+    }
+    
+    composable("login") {
+        SignInView(onSuccess = { navController.navigate("sleep_tracker") })
+    }
+    
+    composable("journal_list") {
+        // PENTING: Check userId sebelum render!
+        if (userIdValue != null) {
+            JournalListScreen(
+                userId = userIdValue!!,
+                onAdd = { navController.navigate("journal_entry") }
+            )
+        }
+    }
+    
+    composable("journal_entry/{journalId}?") {  // ? = optional parameter
+        val journalId = it.arguments?.getString("journalId")?.toIntOrNull()
+        JournalEntryScreen(
+            journalId = journalId,
+            onSaved = { navController.popBackStack() }
+        )
+    }
+}
+
+
+NAVIGATION FLOW - JOURNAL FEATURE:
+═══════════════════════════════════
+
+[Journal List Screen]
+       ↓
+   Click "+"  →  Navigate "journal_entry"
+       ↓
+[Journal Entry Screen - Create Mode]
+       ↓
+  Click "Save"  →  viewModel.addJournal()
+       ↓
+   Add succeeds  →  onSaved() callback
+       ↓
+  popBackStack()  →  Navigate back to list
+       ↓
+[Journal List Screen - Auto refresh]
+
+PENTING: Setiap navigation harus handle success/failure!
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+6. BACKEND CONTROLLERS
+═══════════════════════════════════════════════════════════════════════════════════
+
+CONTROLLER = Handler untuk HTTP requests
+Analogi: Kasir di warung yang nerima pesanan customer
+
+
+USER CONTROLLER (src/controllers/user-controller.ts):
+═════════════════════════════════════════════════════
+
+static async login(req: Request, res: Response, next: NextFunction) {
+    try {
+        const result = await UserService.login(req.body)
+        const accessToken = generateAccessToken({
+            user_id: result.user_id,
+            username: result.username
+        })
+        const refreshToken = generateRefreshToken({...})
+        res.status(200).json({
+            accessToken,
+            refreshToken,
+            user: result
+        })
+    } catch (error) {
+        next(error)
+    }
+}
+
+BREAKDOWN:
+1. req.body = data dari client (username, password)
+2. UserService.login() = check database, validate credentials
+3. generateToken() = create JWT token
+4. res.status(200).json({...}) = return response to client
+5. next(error) = pass error ke error handler middleware
+
+
+RESPONSE FORMAT:
+════════════════
+
+Success:
+{
+    "accessToken": "eyJhbGciOiJIUzI1NiI...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiI...",
+    "user": {
+        "user_id": 2,
+        "username": "kiara",
+        "name": "Kiara"
+    }
+}
+
+Error:
+{
+    "errors": "jwt expired"
+}
+
+
+HTTP STATUS CODES:
+══════════════════
+200 OK           → Request berhasil
+201 Created      → Resource baru dibuat
+400 Bad Request  → Data invalid
+401 Unauthorized → Token invalid/expired
+403 Forbidden    → User tidak boleh akses
+404 Not Found    → Resource tidak ada
+500 Server Error → Internal server error
+
+
+REQUEST-RESPONSE CYCLE:
+══════════════════════
+
+Frontend:
+POST /api/login
+{
+    "username": "kiara",
+    "password": "password123"
+}
+        ↓
+Backend UserController.login():
+1. Extract req.body
+2. Call UserService.login()
+3. Generate tokens
+4. Send response 200
+        ↓
+Frontend receives:
+{
+    "accessToken": "...",
+    "refreshToken": "...",
+    "user": {...}
+}
+        ↓
+Frontend TokenManager.saveTokens(accessToken, refreshToken)
+        ↓
+Frontend AuthViewModel updates _userId
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+7. DATABASE INTEGRATION
+═══════════════════════════════════════════════════════════════════════════════════
+
+DATABASE FLOW:
+══════════════
+
+Frontend        Backend           Database
+  │               │                  │
+  │──API call─→   │                  │
+  │               │──SQL query──→   │
+  │               │                  │
+  │               │  ←──Result───   │
+  │  ←─response─  │                  │
+  │               │                  │
+
+PRISMA = ORM (Object-Relational Mapping)
+Memudahkan query database seperti JavaScript objects
+
+
+SCHEMA.PRISMA (Data model):
+═══════════════════════════
+
+model User {
+    user_id    Int       @id @default(autoincrement())
+    username   String    @unique
+    password   String
+    name       String
+    created_at DateTime  @default(now())
+    
+    // Relations
+    journals   Journal[]
+    sleepSessions SleepSession[]
+}
+
+model Journal {
+    journal_id Int      @id @default(autoincrement())
+    user_id    Int
+    content    String
+    mood       String
+    created_at DateTime @default(now())
+    
+    // Foreign key
+    user       User     @relation(fields: [user_id], references: [user_id])
+}
+
+
+CONTOH QUERY (UserService.ts):
+═════════════════════════════
+
+static async login(body: any) {
+    // Query: SELECT * FROM users WHERE username = ?
+    const user = await prisma.user.findUnique({
+        where: { username: body.username }
+    })
+    
+    if (!user) {
+        throw new Error("User not found")
+    }
+    
+    // Compare password
+    const isPasswordValid = await bcrypt.compare(body.password, user.password)
+    
+    if (!isPasswordValid) {
+        throw new Error("Password invalid")
+    }
+    
+    return user
+}
+
+PRISMA OPERATIONS:
+─ findUnique() - Find by unique field (id, email, username)
+─ findMany() - Find multiple records
+─ create() - Insert new record
+─ update() - Update existing record
+─ delete() - Delete record
+
+
+JOURNAL OPERATIONS (Repository):
+════════════════════════════════
+
+// CREATE
+await prisma.journal.create({
+    data: {
+        user_id: 2,
+        content: "Hari ini menyenangkan",
+        mood: "happy"
+    }
+})
+
+// READ
+await prisma.journal.findUnique({
+    where: { journal_id: 1 }
+})
+
+// READ MANY
+await prisma.journal.findMany({
+    where: { user_id: 2 }
+})
+
+// UPDATE
+await prisma.journal.update({
+    where: { journal_id: 1 },
+    data: { mood: "sad" }
+})
+
+// DELETE
+await prisma.journal.delete({
+    where: { journal_id: 1 }
+})
+
+
+MIDDLEWARE (YANG IMPORTANT):
+═══════════════════════════
+
+1. Auth Middleware (Protect routes):
+   const authMiddleware = (req, res, next) => {
+       const token = req.headers.authorization?.split(" ")[1]
+       if (!token) return res.status(401).json({errors: "Token required"})
+       
+       try {
+           const user = verifyToken(token)
+           req.user = user
+           next()
+       } catch {
+           res.status(401).json({errors: "jwt expired"})
+       }
+   }
+   
+   Usage:
+   router.get("/journals", authMiddleware, getJournals)
+   // Route hanya bisa diakses dengan valid token
+
+2. Error Handler (Centralized error handling):
+   app.use((err, req, res, next) => {
+       console.error(err)
+       res.status(500).json({errors: err.message})
+   })
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+8. CONTOH KODE REAL DARI PROJECT KAMU
+═══════════════════════════════════════════════════════════════════════════════════
+
+JOURNALVIEWMODEL.KT - COMPLETE EXAMPLE:
+═══════════════════════════════════════
+
+class JournalViewModel(
+    private val journalRepository: JournalRepository
+) : ViewModel() {
+
+    // STATE: List of journals
+    private val _journals = MutableStateFlow<List<Journal>>(emptyList())
+    val journals: StateFlow<List<Journal>> = _journals.asStateFlow()
+
+    // STATE: Single journal for editing
+    private val _currentJournal = MutableStateFlow<Journal?>(null)
+    val currentJournal: StateFlow<Journal?> = _currentJournal.asStateFlow()
+
+    // STATE: Loading indicator
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
+    // FETCH JOURNALS - Called when screen loads
+    fun fetchJournals(userId: Int) {
+        viewModelScope.launch {
+            journalRepository.getJournals(userId)
+                .onSuccess { journals ->
+                    _journals.value = journals
+                    Log.d("JournalVM", "Fetched ${journals.size} journals")
+                }
+                .onFailure { e ->
+                    Log.e("JournalVM", "Fetch failed: ${e.message}")
+                }
+        }
+    }
+
+    // LOAD SINGLE JOURNAL - For edit mode
+    fun loadJournal(journalId: Int) {
+        _currentJournal.value = null
+        viewModelScope.launch {
+            journalRepository.getJournal(journalId)
+                .onSuccess { journal ->
+                    _currentJournal.value = journal
+                }
+                .onFailure { e ->
+                    Log.e("JournalVM", "Load failed: ${e.message}")
+                }
+        }
+    }
+
+    // ADD NEW JOURNAL
+    fun addJournal(
+        userId: Int,
+        content: String,
+        mood: MoodType,
+        onComplete: () -> Unit = {}
+    ) {
+        _isSaving.value = true  // Show loading
+        viewModelScope.launch {
+            val request = JournalRequest(
+                user_id = userId,
+                content = content,
+                mood = mood.name.lowercase()  // API expects lowercase
+            )
+
+            journalRepository.createJournal(request)
+                .onSuccess {
+                    Log.d("JournalVM", "Journal created successfully")
+                    fetchJournals(userId)  // Refresh list
+                    _isSaving.value = false  // Hide loading
+                    onComplete()  // Callback to screen
+                }
+                .onFailure { e ->
+                    Log.e("JournalVM", "Add failed: ${e.message}")
+                    _isSaving.value = false
+                }
+        }
+    }
+
+    // UPDATE JOURNAL
+    fun updateJournal(
+        journalId: Int,
+        userId: Int,
+        content: String,
+        mood: MoodType,
+        onComplete: () -> Unit = {}
+    ) {
+        _isSaving.value = true
+        viewModelScope.launch {
+            val request = JournalUpdateRequest(
+                content = content,
+                mood = mood.name.lowercase()
+            )
+
+            journalRepository.updateJournal(journalId, request)
+                .onSuccess {
+                    Log.d("JournalVM", "Journal updated successfully")
+                    fetchJournals(userId)
+                    _isSaving.value = false
+                    onComplete()
+                }
+                .onFailure { e ->
+                    Log.e("JournalVM", "Update failed: ${e.message}")
+                    _isSaving.value = false
+                }
+        }
+    }
+
+    // DELETE JOURNAL - Optimistic delete
+    fun deleteJournal(journalId: Int, userId: Int) {
+        // Remove dari UI immediately
+        _journals.value = _journals.value.filter { it.journal_id != journalId }
+        
+        viewModelScope.launch {
+            journalRepository.deleteJournal(journalId)
+                .onSuccess {
+                    Log.d("JournalVM", "Journal deleted successfully")
+                }
+                .onFailure { e ->
+                    Log.e("JournalVM", "Delete failed: ${e.message}")
+                    // Reload if delete fails to restore item
+                    fetchJournals(userId)
+                }
+        }
+    }
+}
+
+PELAJARAN DARI CODE INI:
+- Selalu ada 3 state: loading, success, failure
+- onComplete callback untuk navigation flow control
+- Lowercase untuk API consistency
+- Log dengan tag dan message yang descriptive
+
+
+JOURNALENTRYSCREEN.KT - COMPLETE EXAMPLE:
+══════════════════════════════════════════
+
+@Composable
+fun JournalEntryScreen(
+    viewModel: JournalViewModel,
+    userId: Int,
+    journalId: Int?,
+    onBack: () -> Unit,
+    onSaved: () -> Unit
+) {
+    var selectedMood by remember { mutableStateOf(MoodType.HAPPY) }
+    var content by remember { mutableStateOf("") }
+
+    val isEditMode = journalId != null
+    val currentJournal by viewModel.currentJournal.collectAsState(initial = null)
+    val isSaving by viewModel.isSaving.collectAsState()
+
+    // Reset fields when switching modes
+    LaunchedEffect(journalId) {
+        if (journalId == null) {
+            // CREATE mode: Reset
+            selectedMood = MoodType.HAPPY
+            content = ""
+        } else {
+            // EDIT mode: Load from API
+            viewModel.loadJournal(journalId)
+        }
+    }
+
+    // Update fields when journal loaded
+    LaunchedEffect(currentJournal) {
+        if (currentJournal != null && isEditMode) {
+            content = currentJournal!!.content
+            selectedMood = try {
+                MoodType.valueOf(currentJournal!!.mood.uppercase())
+            } catch (e: Exception) {
+                MoodType.HAPPY
+            }
+        }
+    }
+
+    // UI Code
+    Box(modifier = Modifier.fillMaxSize()) {
+        // ... Background image, etc
+        
+        Column {
+            Row {
+                Icon(...) { onBack() }  // Back button
+                
+                Text(if (isEditMode) "Update" else "Save") {
+                    if (content.isNotEmpty()) {
+                        if (isEditMode && journalId != null) {
+                            // EDIT
+                            viewModel.updateJournal(
+                                journalId,
+                                userId,
+                                content,
+                                selectedMood,
+                                onComplete = { onSaved() }
+                            )
+                        } else {
+                            // CREATE
+                            viewModel.addJournal(
+                                userId,
+                                content,
+                                selectedMood,
+                                onComplete = { onSaved() }
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Mood buttons
+            MoodRow(selectedMood) { selectedMood = it }
+            
+            // Text input
+            TextInput(content) { content = it }
+        }
+    }
+}
+
+PELAJARAN:
+- Separate LaunchedEffect untuk different concerns
+- collectAsState() untuk observe StateFlow
+- Callback passing untuk flow control
+
+
+BACKEND: USER-CONTROLLER.TS - LOGIN DENGAN REFRESH TOKEN:
+══════════════════════════════════════════════════════════
+
+static async login(req: Request, res: Response, next: NextFunction) {
+    try {
+        // 1. Authenticate user (username + password)
+        const result = await UserService.login(req.body)
+
+        // 2. Generate tokens
+        const accessToken = generateAccessToken({
+            user_id: result.user_id,
+            username: result.username
+        })
+        const refreshToken = generateRefreshToken({
+            user_id: result.user_id,
+            username: result.username
+        })
+
+        // 3. Send response
+        res.status(200).json({
+            accessToken,      // Valid for 1 hour
+            refreshToken,     // Valid for 7 days
+            user: result
+        })
+    } catch (error) {
+        next(error)
+    }
+}
+
+static async refreshToken(req: Request, res: Response, next: NextFunction) {
+    try {
+        // 1. Get refresh token from request
+        const { refreshToken } = req.body
+
+        // 2. Verify refresh token
+        const payload = verifyToken(refreshToken)
+
+        // 3. Generate new access token
+        const newAccessToken = generateAccessToken({
+            user_id: payload.user_id,
+            username: payload.username
+        })
+
+        // 4. Send response
+        res.status(200).json({
+            accessToken: newAccessToken  // New 1 hour token
+        })
+    } catch (error) {
+        next(error)  // 401 if refresh token invalid
+    }
+}
+
+PELAJARAN:
+- Separate short-lived (accessToken) dan long-lived (refreshToken)
+- Refresh endpoint stateless (tidak perlu check database)
+- Token verification auto-happen saat verifyToken()
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+📋 RINGKASAN UNTUK UJIAN
+═══════════════════════════════════════════════════════════════════════════════════
+
+YANG PASTI DITANYA:
+═════════════════
+
+1. MVVM Architecture:
+   ✓ Apa itu MVVM? (Model-View-ViewModel)
+   ✓ Keuntungan MVVM (separation of concerns, testable, reactive)
+   ✓ Interaction antara layer (View observe ViewModel, ViewModel call Repository)
+
+2. StateFlow & Coroutines:
+   ✓ Apa itu StateFlow? (Reactive state management)
+   ✓ Apa itu Coroutines? (Non-blocking async operations)
+   ✓ viewModelScope.launch untuk background operations
+   ✓ Private MutableStateFlow, public StateFlow
+
+3. Journal Feature:
+   ✓ Apa itu Journal feature? (CRUD operations)
+   ✓ Screens: List dan Entry (Create/Edit)
+   ✓ Methods: fetch, load, add, update, delete
+   ✓ Callback untuk navigation flow control
+
+4. Code Correctness:
+   ✓ Error handling (try-catch untuk parsing)
+   ✓ String case sensitivity (uppercase/lowercase)
+   ✓ Async sequencing (onComplete callback)
+   ✓ State persistence (userId restoration)
+   ✓ Loading states (isSaving)
+
+5. Routing:
+   ✓ NavGraph definition
+   ✓ Routes dengan parameters
+   ✓ Navigation flow untuk Journal (list → entry → back)
+   ✓ Null-safety checks sebelum render
+
+6. Backend Controllers:
+   ✓ Controller purpose (handle HTTP requests)
+   ✓ Request-response cycle
+   ✓ Error handling dengan next(error)
+   ✓ Status codes (200, 201, 400, 401, 500)
+
+7. Database Integration:
+   ✓ Prisma ORM untuk database queries
+   ✓ CRUD operations (create, read, update, delete)
+   ✓ Relations (User has many Journals)
+   ✓ Middleware untuk auth protection
+
+
+PRACTICE QUESTIONS:
+═════════════════
+
+1. Jelaskan flow ketika user klik "Save" di Journal Entry Screen sampai data muncul di list!
+
+2. Kenapa UserIdValue bisa null? Bagaimana solusinya?
+
+3. Jelaskan perbedaan accessToken dan refreshToken dalam implementasi kamu!
+
+4. Apa yang terjadi ketika API call gagal? Bagaimana error handling-nya?
+
+5. Kenapa perlu onComplete callback di addJournal method?
+
+6. Jelaskan optimistic delete implementation!
+
+7. Bagaimana cara database tahu journal belong ke mana? (Foreign key concept)
+
+8. Apa itu interceptor? Gimana TokenRefreshInterceptor bekerja?
+
+9. Kenapa perlu viewModelScope.launch?
+
+10. Bagaimana LaunchedEffect condition logic untuk create vs edit mode?
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+✅ TIPS UNTUK UJIAN
+═══════════════════════════════════════════════════════════════════════════════════
+
+1. BEFORE UJIAN:
+   ✓ Review CHANGES_SUMMARY.txt (semua perubahan kamu)
+   ✓ Baca code-mu sendiri (understand intent)
+   ✓ Pahami error yang terjadi dan solusinya
+   ✓ Inget sequence: UI → ViewModel → Repository → API → Database
+
+2. SAAT UJIAN:
+   ✓ Jelaskan dengan confidence, walau ada bagian yang kurang
+   ✓ Draw diagram if possible (flow, architecture)
+   ✓ Use concrete examples dari project kamu
+   ✓ Explain WHY, bukan hanya WHAT
+   ✓ Admit kalau ada yang belum sempurna, tapi explain the concept
+
+3. TALKING POINTS:
+   ✓ "Saya implement MVVM untuk separation of concerns"
+   ✓ "StateFlow provide reactive updates tanpa need polling"
+   ✓ "Coroutines keep UI responsive dengan non-blocking operations"
+   ✓ "Error handling dengan try-catch dan logging untuk debugging"
+   ✓ "Optimistic delete improve UX walau ada risk"
+   ✓ "Refresh token untuk persistent session without re-login"
+
+4. IF ASKED ABOUT IMPROVEMENTS:
+   ✓ Caching untuk reduce API calls
+   ✓ Offline support dengan local database
+   ✓ Better error messages untuk user
+   ✓ Validation di client sebelum send ke server
+   ✓ Pagination untuk large lists
+   ✓ Testing unit tests untuk ViewModel
+
+═══════════════════════════════════════════════════════════════════════════════════
+Good luck untuk ujiannya! Kamu udah implement banyak best practices 💪
+═══════════════════════════════════════════════════════════════════════════════════
