@@ -12,6 +12,14 @@ export const generateToken = (
     })
 }
 
+export const generateAccessToken = (payload: UserJWTPayload): string => {
+    return generateToken(payload, "1h")
+}
+
+export const generateRefreshToken = (payload: UserJWTPayload): string => {
+    return generateToken(payload, "7d")
+}
+
 export const verifyToken = (token: string): UserJWTPayload => {
     return jwt.verify(token, JWT_SECRET_KEY || "secret_key") as UserJWTPayload
 }
