@@ -6,6 +6,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ENUMS
@@ -69,4 +70,17 @@ model Sound {
   title     String
   duration  Int?
   file_path String
+}
+
+enum MusicCategory {
+  BEFORE_SLEEP
+  DURING_SLEEP
+}
+
+model Music {
+  id        Int           @id @default(autoincrement())
+  title     String
+  videoId   String
+  category  MusicCategory
+  duration  String
 }

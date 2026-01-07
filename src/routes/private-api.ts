@@ -3,6 +3,7 @@ import { authMiddleware } from "../middlewares/auth-middleware"
 import { UserController } from '../controllers/user-controller'
 import { SleepController } from '../controllers/sleep-controller'
 import { createJournal, getJournalById, getJournalsByUser, updateJournal, deleteJournal } from '../controllers/journal-controller'
+import { MusicController } from '../controllers/music-controller'
 
 export const privateRouter = express.Router()
 
@@ -27,3 +28,7 @@ privateRouter.get('/journals/single/:id', getJournalById)
 privateRouter.get('/journals/:userId', getJournalsByUser)
 privateRouter.put('/journals/:id', updateJournal)
 privateRouter.delete('/journals/:id', deleteJournal)
+
+// Music routes
+privateRouter.get('/music', MusicController.getAllMusic)
+
