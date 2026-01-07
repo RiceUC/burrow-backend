@@ -28,25 +28,11 @@ export class SleepService {
             throw new ResponseError(400, "You already have an active sleep session")
         }
 
-        // Verify sound exists if provided
-        if (validated.sound_id) {
-            const sound = await prismaClient.sound.findUnique({
-                where: { sound_id: validated.sound_id }
-            })
-            if (!sound) {
-                throw new ResponseError(404, "Sound not found")
-            }
-        }
-
         const session = await prismaClient.sleepSession.create({
             data: {
                 user_id,
                 start_time: new Date(validated.start_time),
-                sound_id: validated.sound_id,
                 end_time: null
-            },
-            include: {
-                sound: true
             }
         })
 

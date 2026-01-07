@@ -2,7 +2,7 @@ import express from 'express'
 import fs from "fs"
 import path from "path"
 import { UserController } from '../controllers/user-controller'
-import { MusicController } from '../controllers/music-controller'
+import { MusicController } from '../controllers/music-controller.ts'
 import { upload } from '../middlewares/upload-middleware'
 
 export const publicRouter = express.Router()
