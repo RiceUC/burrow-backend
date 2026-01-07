@@ -16,6 +16,11 @@ enum Mood {
   angry
 }
 
+enum SoundCategory {
+  about_to_sleep
+  while_sleeping
+}
+
 // MODELS
 // USERS TABLE
 model User {

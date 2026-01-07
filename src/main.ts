@@ -11,11 +11,8 @@ const app = express()
 app.use(express.json())
 app.use(cors())
 
-// 🔊 expose music files
-app.use(
-  "/uploads/music",
-  express.static(path.join(__dirname, "../uploads/music"))
-)
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // Health check
 app.get("/", (req, res) => {

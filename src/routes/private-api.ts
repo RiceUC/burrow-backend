@@ -3,6 +3,7 @@ import { authMiddleware } from "../middlewares/auth-middleware"
 import { UserController } from '../controllers/user-controller'
 import { SleepController } from '../controllers/sleep-controller'
 import { createJournal, getJournalById, getJournalsByUser, updateJournal, deleteJournal } from '../controllers/journal-controller'
+import { SoundController } from '../controllers/sound-controller'
 
 export const privateRouter = express.Router()
 
@@ -27,3 +28,11 @@ privateRouter.get('/journals/single/:id', getJournalById)  // GET /journals/sing
 privateRouter.get('/journals/:userId', getJournalsByUser)  // GET /journals/:userId (GENERIC - BELAKANGAN)
 privateRouter.put('/journals/:id', updateJournal)          // PUT /journals/:id
 privateRouter.delete('/journals/:id', deleteJournal)       // DELETE /journals/:id
+
+// Sound routes
+privateRouter.get("/sounds", SoundController.getAll)
+privateRouter.get("/sounds/category/:category", SoundController.getByCategory)
+privateRouter.get("/sounds/:id", SoundController.getById)
+privateRouter.post("/sounds", SoundController.create)  // Admin only
+privateRouter.put("/sounds/:id", SoundController.update)  // Admin only
+privateRouter.delete("/sounds/:id", SoundController.delete)  // Admin only
